@@ -39,7 +39,8 @@ class AthenaBatch(object):
             status = stats['QueryExecution']['Status']['State']
             if status in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
                 break
-            time.sleep(0.2)  # 200ms
+            time.sleep(0.5)  # 500ms
+            print('time sleep...500ms')
 
         if status == 'SUCCEEDED':
             results = self.athena.get_query_results(execution_id)
