@@ -24,12 +24,16 @@ __version__ = '0.1.8'
 
 class AthenaBatch(object):
 
-    def __init__(self, athena, db=None, format='CSV'):
+    def __init__(self, athena, db=None, format='CSV', timesleep=None):
         self.athena = athena
         self.dbname = db
         self.format = format
+        self.timesleep = timesleep
 
     def execute(self, statement):
+        if not self.timesleep:
+            raise ValueError('Timesleep must be specified')
+
         execution_id = self.athena.start_query_execution(self.dbname, statement)
         if not execution_id:
             return
@@ -39,7 +43,7 @@ class AthenaBatch(object):
             status = stats['QueryExecution']['Status']['State']
             if status in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
                 break
-            time.sleep(0.2)  # 200ms
+            time.sleep(float(self.timesleep))
 
         if status == 'SUCCEEDED':
             results = self.athena.get_query_results(execution_id)
@@ -191,7 +195,7 @@ See http://docs.aws.amazon.com/athena/latest/ug/language-reference.html
             sys.stdout.flush()
             if status in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
                 break
-            time.sleep(0.2)  # 200ms
+            time.sleep(float(self.timesleep))
 
         sys.stdout.write('\r' + ' ' * len(status_line) + '\r')  # delete query status line
         sys.stdout.flush()
@@ -334,7 +338,7 @@ def main():
     parser = argparse.ArgumentParser(
         prog='athena',
         usage='athena [--debug] [--execute <statement>] [--output-format <format>] [--schema <schema>]'
-              ' [--profile <profile>] [--region <region>] [--s3-bucket <bucket>] [--server-side-encryption] [--version]',
+              ' [--profile <profile>] [--region <region>] [--s3-bucket <bucket>] [--server-side-encryption] [--timesleep <time(sec)>] [--version]',
         description='Athena interactive console'
     )
     parser.add_argument(
@@ -380,6 +384,10 @@ def main():
         help='Use server-side-encryption for query results'
     )
     parser.add_argument(
+        '--timesleep',
+        help='Sleep time for get_query_execution'
+    )
+    parser.add_argument(
         '--version',
         action='store_true',
         help='show version info and exit'
@@ -401,7 +409,7 @@ def main():
         sys.exit(e)
 
     if args.execute:
-        batch = AthenaBatch(athena, db=args.schema, format=args.format)
+        batch = AthenaBatch(athena, db=args.schema, format=args.format, timesleep=args.timesleep)
         batch.execute(statement=args.execute)
     else:
         shell = AthenaShell(athena, db=args.schema)
